@@ -1,110 +1,142 @@
-const API_UPSCALE = "https://api-faa.my.id/faa/hdv4";
-const UPLOAD_URL = "https://uguu.se/upload.php";
+// Multi Platform Downloader (Backend API akan diisi nanti)
+// Buat sekarang pake dummy dulu, nanti tinggal ganti API endpoint
 
-const uploadArea = document.getElementById('uploadArea');
-const fileInput = document.getElementById('fileInput');
-const previewArea = document.getElementById('previewArea');
-const previewImg = document.getElementById('previewImg');
-const processBtn = document.getElementById('processBtn');
+let currentPlatform = 'tiktok';
+let currentVideoUrl = null;
+let history = JSON.parse(localStorage.getItem('downloadHistory') || '[]');
+
+// DOM Elements
+const menuBtn = document.getElementById('menuBtn');
+const drawer = document.getElementById('drawer');
+const drawerOverlay = document.getElementById('drawerOverlay');
+const closeDrawer = document.getElementById('closeDrawer');
+const themeToggle = document.getElementById('themeToggle');
+const platformBtns = document.querySelectorAll('.platform-btn');
+const urlInput = document.getElementById('urlInput');
+const downloadBtn = document.getElementById('downloadBtn');
 const loading = document.getElementById('loading');
 const resultArea = document.getElementById('resultArea');
-const resultImg = document.getElementById('resultImg');
-const downloadBtn = document.getElementById('downloadBtn');
-const resetBtn = document.getElementById('resetBtn');
+const videoPreview = document.getElementById('videoPreview');
+const infoTitle = document.getElementById('infoTitle');
+const infoStats = document.getElementById('infoStats');
+const downloadLink = document.getElementById('downloadLink');
+const historyList = document.getElementById('historyList');
+const clearHistoryBtn = document.getElementById('clearHistory');
 
-let uploadedImageUrl = null;
-
-uploadArea.addEventListener('click', () => fileInput.click());
-uploadArea.addEventListener('dragover', (e) => {
-    e.preventDefault();
-    uploadArea.style.borderColor = '#38bdf8';
-});
-uploadArea.addEventListener('dragleave', () => {
-    uploadArea.style.borderColor = 'rgba(255,255,255,0.4)';
-});
-uploadArea.addEventListener('drop', (e) => {
-    e.preventDefault();
-    const file = e.dataTransfer.files[0];
-    if (file && file.type.startsWith('image/')) handleFile(file);
-    uploadArea.style.borderColor = 'rgba(255,255,255,0.4)';
+// Drawer Menu
+menuBtn.addEventListener('click', () => {
+    drawer.classList.add('open');
+    drawerOverlay.classList.add('open');
 });
 
-fileInput.addEventListener('change', (e) => {
-    if (e.target.files[0]) handleFile(e.target.files[0]);
-});
-
-async function handleFile(file) {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        previewImg.src = e.target.result;
-        previewArea.classList.remove('hidden');
-        uploadArea.classList.add('hidden');
-    };
-    reader.readAsDataURL(file);
-
-    // Upload ke uguu.se
-    loading.classList.remove('hidden');
-    previewArea.classList.add('hidden');
-
-    const formData = new FormData();
-    formData.append('file', file);
-
-    try {
-        const uploadRes = await fetch(UPLOAD_URL, {
-            method: 'POST',
-            body: formData
-        });
-        const uploadText = await uploadRes.text();
-        // uguu.se balikin URL langsung
-        const match = uploadText.match(/https?:\/\/[^\s"']+\.(jpg|jpeg|png|webp)/i);
-        if (match) {
-            uploadedImageUrl = match[0];
-            loading.classList.add('hidden');
-            previewArea.classList.remove('hidden');
-        } else {
-            throw new Error('Gagal upload ke uguu');
-        }
-    } catch (err) {
-        loading.classList.add('hidden');
-        alert('Upload gagal: ' + err.message);
-        resetToUpload();
-    }
+function closeDrawerMenu() {
+    drawer.classList.remove('open');
+    drawerOverlay.classList.remove('open');
 }
 
-processBtn.addEventListener('click', async () => {
-    if (!uploadedImageUrl) return;
+closeDrawer.addEventListener('click', closeDrawerMenu);
+drawerOverlay.addEventListener('click', closeDrawerMenu);
+
+// Theme Toggle
+themeToggle.addEventListener('click', () => {
+    const body = document.body;
+    const currentTheme = body.getAttribute('data-theme');
+    if (currentTheme === 'dark') {
+        body.setAttribute('data-theme', 'light');
+        themeToggle.textContent = '☀️';
+    } else {
+        body.setAttribute('data-theme', 'dark');
+        themeToggle.textContent = '🌙';
+    }
+});
+
+// Platform Selector
+platformBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+        platformBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentPlatform = btn.getAttribute('data-platform');
+    });
+});
+
+// Simulate Download (nanti ganti panggil API real)
+async function processDownload(url, platform) {
+    // DUMMY - nanti ganti dengan API asli
+    return new Promise((resolve) => {
+        setTimeout(() => {
+            resolve({
+                status: true,
+                video_url: 'https://sample-videos.com/video123/mp4/720/big_buck_bunny_720p_1mb.mp4',
+                title: `Video dari ${platform.toUpperCase()}`,
+                stats: '❤️ 1.2K 💬 456 🔁 789'
+            });
+        }, 1500);
+    });
+}
+
+downloadBtn.addEventListener('click', async () => {
+    const url = urlInput.value.trim();
+    if (!url) {
+        alert('Masukkan link video dulu!');
+        return;
+    }
 
     loading.classList.remove('hidden');
-    previewArea.classList.add('hidden');
+    resultArea.classList.add('hidden');
 
     try {
-        const response = await fetch(`${API_UPSCALE}?image=${encodeURIComponent(uploadedImageUrl)}`);
-        const data = await response.json();
-
-        if (data.status && data.result?.image_upscaled) {
-            const upscaledUrl = data.result.image_upscaled;
-            resultImg.src = upscaledUrl;
-            downloadBtn.href = upscaledUrl;
+        const result = await processDownload(url, currentPlatform);
+        
+        if (result.status) {
+            currentVideoUrl = result.video_url;
+            videoPreview.src = result.video_url;
+            infoTitle.textContent = result.title;
+            infoStats.textContent = result.stats;
+            downloadLink.href = result.video_url;
+            downloadLink.download = `${currentPlatform}_video.mp4`;
             resultArea.classList.remove('hidden');
+
+            // Save to history
+            const historyItem = {
+                platform: currentPlatform,
+                url: url,
+                videoUrl: result.video_url,
+                title: result.title,
+                date: new Date().toLocaleString()
+            };
+            history.unshift(historyItem);
+            if (history.length > 20) history.pop();
+            localStorage.setItem('downloadHistory', JSON.stringify(history));
+            renderHistory();
         } else {
-            throw new Error('Gagal upscale gambar');
+            alert('Gagal memproses video!');
         }
     } catch (err) {
         alert('Error: ' + err.message);
-        resetToUpload();
     } finally {
         loading.classList.add('hidden');
     }
 });
 
-resetBtn.addEventListener('click', resetToUpload);
-
-function resetToUpload() {
-    uploadedImageUrl = null;
-    previewArea.classList.add('hidden');
-    resultArea.classList.add('hidden');
-    uploadArea.classList.remove('hidden');
-    fileInput.value = '';
-    previewImg.src = '';
-    resultImg.src = '';
+function renderHistory() {
+    if (history.length === 0) {
+        historyList.innerHTML = '<div class="empty-history">Belum ada riwayat</div>';
+        return;
+    }
+    
+    historyList.innerHTML = history.map(item => `
+        <div class="history-item">
+            <span>🎬 ${item.platform.toUpperCase()}</span>
+            <span style="font-size:0.6rem; opacity:0.6">${item.date}</span>
+            <a href="${item.videoUrl}" download>⬇️</a>
+        </div>
+    `).join('');
 }
+
+clearHistoryBtn.addEventListener('click', () => {
+    history = [];
+    localStorage.removeItem('downloadHistory');
+    renderHistory();
+});
+
+renderHistory();
