@@ -1,43 +1,95 @@
+
 <!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI HD Upscaler | Fikri.Z</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Multi Downloader | Fikri.Z</title>
     <link rel="stylesheet" href="style.css">
 </head>
-<body>
-    <div class="container">
-        <div class="card">
-            <h1>🖼️ AI HD Upscaler <span>v4</span></h1>
-            <p>Perbesar & tingkatkan kualitas gambar pakai AI</p>
-
-            <div class="upload-area" id="uploadArea">
-                📤 Klik atau drag gambar ke sini
-                <input type="file" id="fileInput" accept="image/*" hidden>
+<body data-theme="dark">
+    <!-- Menu Drawer -->
+    <div id="drawer" class="drawer">
+        <div class="drawer-header">
+            <span class="drawer-logo">📦 XZ Tools</span>
+            <button id="closeDrawer" class="close-drawer">✕</button>
+        </div>
+        <div class="drawer-menu">
+            <div class="menu-item active" data-menu="downloader">
+                <span>⬇️</span> Downloader
             </div>
-
-            <div id="previewArea" class="preview-area hidden">
-                <img id="previewImg" alt="Preview">
-                <button id="processBtn" class="process-btn">✨ Upscale dengan AI</button>
+            <div class="menu-item" data-menu="stalker">
+                <span>🔍</span> Stalker <span class="coming-soon">Soon</span>
             </div>
-
-            <div id="loading" class="loading hidden">
-                <div class="spinner"></div>
-                <p>Uploading & processing...</p>
+            <div class="menu-item" data-menu="generator">
+                <span>⚡</span> Generator <span class="coming-soon">Soon</span>
             </div>
-
-            <div id="resultArea" class="result-area hidden">
-                <h3>Hasil Upscale ⬇️</h3>
-                <img id="resultImg" alt="Hasil">
-                <div class="button-group">
-                    <a id="downloadBtn" class="download-btn" download="upscaled.jpg">💾 Download Gambar</a>
-                    <button id="resetBtn" class="reset-btn">↺ Upscale Lagi</button>
-                </div>
+            <div class="menu-item" data-menu="tools">
+                <span>🛠️</span> Tools <span class="coming-soon">Soon</span>
             </div>
         </div>
-        <footer>DEVELOPED BY FIKRI.Z | Powered by AI HD v4</footer>
     </div>
+
+    <!-- Overlay -->
+    <div id="drawerOverlay" class="drawer-overlay"></div>
+
+    <!-- Main Container -->
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <button id="menuBtn" class="icon-btn">⋮</button>
+            <h1>Multi <span>Downloader</span></h1>
+            <button id="themeToggle" class="icon-btn">🌙</button>
+        </div>
+
+        <p class="subtitle">Download video dari berbagai platform tanpa watermark</p>
+
+        <!-- Platform Selector -->
+        <div class="platform-selector">
+            <button class="platform-btn active" data-platform="tiktok">🎵 TikTok</button>
+            <button class="platform-btn" data-platform="instagram">📸 Instagram</button>
+            <button class="platform-btn" data-platform="facebook">📘 Facebook</button>
+            <button class="platform-btn" data-platform="snackvideo">🍿 SnackVideo</button>
+            <button class="platform-btn" data-platform="twitter">🐦 Twitter</button>
+            <button class="platform-btn" data-platform="likee">🎬 Likee</button>
+        </div>
+
+        <!-- Input Area -->
+        <div class="input-area">
+            <input type="text" id="urlInput" class="url-input" placeholder="Tempel link video disini...">
+            <button id="downloadBtn" class="download-btn">⬇️ Proses & Download</button>
+        </div>
+
+        <!-- Loading -->
+        <div id="loading" class="loading hidden">
+            <div class="spinner"></div>
+            <p>Memproses video...</p>
+        </div>
+
+        <!-- Result Area -->
+        <div id="resultArea" class="result-area hidden">
+            <div class="video-preview">
+                <video id="videoPreview" controls></video>
+            </div>
+            <div class="info-card">
+                <div class="info-title" id="infoTitle">-</div>
+                <div class="info-stats" id="infoStats"></div>
+                <a id="downloadLink" class="save-btn" download>💾 Simpan Video</a>
+            </div>
+        </div>
+
+        <!-- History List -->
+        <div class="history-section">
+            <div class="history-header">
+                <span>📋 Riwayat Download</span>
+                <button id="clearHistory" class="clear-btn">Hapus semua</button>
+            </div>
+            <div id="historyList" class="history-list">
+                <div class="empty-history">Belum ada riwayat</div>
+            </div>
+        </div>
+    </div>
+
     <script src="sc.js"></script>
 </body>
 </html>
