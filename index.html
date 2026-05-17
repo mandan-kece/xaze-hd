@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI HD Upscaler | Fikri.Z</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>🖼️ AI HD Upscaler <span>v4</span></h1>
+            <p>Perbesar & tingkatkan kualitas gambar pakai AI</p>
+
+            <div class="upload-area" id="uploadArea">
+                📤 Klik atau drag gambar ke sini
+                <input type="file" id="fileInput" accept="image/*" hidden>
+            </div>
+
+            <div id="previewArea" class="preview-area hidden">
+                <img id="previewImg" alt="Preview">
+                <button id="processBtn" class="process-btn">✨ Upscale dengan AI</button>
+            </div>
+
+            <div id="loading" class="loading hidden">
+                <div class="spinner"></div>
+                <p>Uploading & processing...</p>
+            </div>
+
+            <div id="resultArea" class="result-area hidden">
+                <h3>Hasil Upscale ⬇️</h3>
+                <img id="resultImg" alt="Hasil">
+                <div class="button-group">
+                    <a id="downloadBtn" class="download-btn" download="upscaled.jpg">💾 Download Gambar</a>
+                    <button id="resetBtn" class="reset-btn">↺ Upscale Lagi</button>
+                </div>
+            </div>
+        </div>
+        <footer>DEVELOPED BY FIKRI.Z | Powered by AI HD v4</footer>
+    </div>
+    <script src="sc.js"></script>
+</body>
+</html>
