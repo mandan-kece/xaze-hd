@@ -1,9 +1,10 @@
 // ============================================
-// YT DOWNLOADER - Nexray API (MP4 + MP3)
+// YT DOWNLOADER v2 - Nexray API
 // ============================================
 
 const form = document.getElementById('downloadForm');
 const urlInput = document.getElementById('urlInput');
+const clearBtn = document.getElementById('clearBtn');
 const submitBtn = document.getElementById('submitBtn');
 const btnText = document.getElementById('btnText');
 const btnLoading = document.getElementById('btnLoading');
@@ -21,28 +22,25 @@ const RESOLUTIONS = ['1080', '720', '480', '360', '240', '144'];
 
 form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const url = urlInput.value.trim();
-    
-    if (!url) {
-        showError('Masukkan link YouTube dulu bro 🗿');
-        return;
-    }
-    
-    if (!isValidYoutubeUrl(url)) {
-        showError('Link YouTube tidak valid bro, cek lagi 🗿');
-        return;
-    }
-    
-    await fetchAll(url);
+    await handleSubmit();
 });
 
-// Auto-submit pas paste
+urlInput.addEventListener('input', () => {
+    clearBtn.classList.toggle('hidden', !urlInput.value);
+});
+
+clearBtn.addEventListener('click', () => {
+    urlInput.value = '';
+    clearBtn.classList.add('hidden');
+    urlInput.focus();
+});
+
 urlInput.addEventListener('paste', () => {
     setTimeout(() => {
         if (urlInput.value.trim() && isValidYoutubeUrl(urlInput.value.trim())) {
-            form.dispatchEvent(new Event('submit'));
+            handleSubmit();
         }
-    }, 150);
+    }, 200);
 });
 
 // ============================================
@@ -50,8 +48,7 @@ urlInput.addEventListener('paste', () => {
 // ============================================
 
 function isValidYoutubeUrl(url) {
-    const pattern = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+/;
-    return pattern.test(url);
+    return /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+/.test(url);
 }
 
 function setLoading(isLoading) {
@@ -67,10 +64,13 @@ function setLoading(isLoading) {
 }
 
 function showError(msg) {
-    errorMsg.textContent = msg;
+    errorMsg.innerHTML = `⚠️ ${msg}`;
     errorMsg.classList.remove('hidden');
     resultContainer.classList.add('hidden');
     loadingState.classList.add('hidden');
+    
+    // Auto hide error after 8s
+    setTimeout(() => errorMsg.classList.add('hidden'), 8000);
 }
 
 function escapeHtml(text) {
@@ -87,8 +87,34 @@ function formatDuration(seconds) {
     return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
+function formatFileSize(bytes) {
+    if (!bytes) return '';
+    const mb = bytes / (1024 * 1024);
+    return mb >= 1 ? `${mb.toFixed(1)} MB` : `${(bytes / 1024).toFixed(0)} KB`;
+}
+
 // ============================================
-// FETCH ALL (VIDEO + AUDIO)
+// HANDLE SUBMIT
+// ============================================
+
+async function handleSubmit() {
+    const url = urlInput.value.trim();
+    
+    if (!url) {
+        showError('Masukkan link YouTube dulu bro 🗿');
+        return;
+    }
+    
+    if (!isValidYoutubeUrl(url)) {
+        showError('Link YouTube tidak valid. Contoh: https://youtube.com/watch?v=xxx atau https://youtu.be/xxx');
+        return;
+    }
+    
+    await fetchAll(url);
+}
+
+// ============================================
+// FETCH ALL
 // ============================================
 
 async function fetchAll(url) {
@@ -96,10 +122,8 @@ async function fetchAll(url) {
     
     const encodedUrl = encodeURIComponent(url);
     
-    // Fetch semua resolusi video + audio paralel
-    const videoPromises = RESOLUTIONS.map(res =>
-        fetchVideo(encodedUrl, res)
-    );
+    // Fetch paralel: semua video + audio
+    const videoPromises = RESOLUTIONS.map(res => fetchVideo(encodedUrl, res));
     const audioPromise = fetchAudio(encodedUrl);
     
     const [videoResults, audioResult] = await Promise.all([
@@ -107,15 +131,20 @@ async function fetchAll(url) {
         audioPromise
     ]);
     
+    // Filter video yang berhasil
     const validVideos = videoResults.filter(r => r !== null);
     
+    // Debug
+    console.log('Valid Videos:', validVideos.length, validVideos);
+    console.log('Audio Result:', audioResult);
+    
     if (validVideos.length === 0 && !audioResult) {
-        showError('Gagal mengambil data. Coba lagi bro 🗿');
+        showError('Gagal mengambil data. Mungkin video tidak tersedia atau private 🗿');
         setLoading(false);
         return;
     }
     
-    // Info dari video pertama yang ada title, atau dari audio
+    // Info dari hasil pertama yang punya title
     const videoInfo = validVideos.find(r => r.title) || audioResult || validVideos[0];
     
     renderResult(videoInfo, validVideos, audioResult);
@@ -131,14 +160,17 @@ async function fetchVideo(encodedUrl, resolution) {
         if (!response.ok) return null;
         
         const data = await response.json();
-        console.log(`MP4 ${resolution}:`, data);
         
         if (data.status && data.result?.url) {
-            return data.result;
+            // Tambahin resolusi ke object
+            return {
+                ...data.result,
+                _resolution: resolution
+            };
         }
         return null;
     } catch (err) {
-        console.warn(`Gagal fetch ${resolution}:`, err);
+        console.warn(`Gagal fetch ${resolution}p:`, err.message);
         return null;
     }
 }
@@ -152,14 +184,13 @@ async function fetchAudio(encodedUrl) {
         if (!response.ok) return null;
         
         const data = await response.json();
-        console.log('MP3:', data);
         
         if (data.status && data.result?.url) {
             return data.result;
         }
         return null;
     } catch (err) {
-        console.warn('Gagal fetch MP3:', err);
+        console.warn('Gagal fetch MP3:', err.message);
         return null;
     }
 }
@@ -169,11 +200,16 @@ async function fetchAudio(encodedUrl) {
 // ============================================
 
 function renderResult(info, videos, audio) {
-    // Urutkan video dari kualitas tertinggi
+    // Urutkan video berdasarkan resolusi tertinggi
     const sortedVideos = [...videos].sort((a, b) => {
-        const qA = parseInt(a.quality) || 0;
-        const qB = parseInt(b.quality) || 0;
+        const qA = parseInt(a.quality) || parseInt(a._resolution) || 0;
+        const qB = parseInt(b.quality) || parseInt(b._resolution) || 0;
         return qB - qA;
+    });
+    
+    // Fix: gunakan quality dari API, fallback ke _resolution
+    sortedVideos.forEach(v => {
+        if (!v.quality) v.quality = `${v._resolution}p`;
     });
     
     const thumbnail = info?.thumbnail || '';
@@ -183,25 +219,28 @@ function renderResult(info, videos, audio) {
     
     let html = `
         <div class="video-info">
-            ${thumbnail ? `<img src="${thumbnail}" alt="Thumbnail">` : ''}
+            ${thumbnail ? `<img src="${thumbnail}" alt="Thumbnail" onerror="this.style.display='none'">` : ''}
             <div class="info-text">
                 <h3>${escapeHtml(title)}</h3>
-                <p class="channel">👤 ${escapeHtml(author)}</p>
-                <p class="duration">⏱️ ${formatDuration(duration)}</p>
+                <div class="meta">
+                    <span>👤 ${escapeHtml(author)}</span>
+                    <span>⏱️ ${formatDuration(duration)}</span>
+                </div>
             </div>
         </div>
     `;
     
     // SECTION VIDEO
     if (sortedVideos.length > 0) {
-        html += '<div class="section-title">🎬 Download Video MP4</div>';
+        html += '<div class="section-title">🎬 Video MP4</div>';
         html += '<div class="download-grid">';
         
         sortedVideos.forEach(v => {
+            const q = v.quality || '?';
             html += `
-                <a href="${v.url}" target="_blank" class="download-btn" rel="noopener noreferrer">
-                    <span class="quality">📹 ${v.quality}</span>
-                    <span class="size">${v.format || 'MP4'}</span>
+                <a href="${v.url}" target="_blank" class="download-btn" rel="noopener noreferrer" download>
+                    <span class="quality">📹 ${q}</span>
+                    <span class="details">${v.format || 'MP4'}</span>
                 </a>
             `;
         });
@@ -210,26 +249,30 @@ function renderResult(info, videos, audio) {
     }
     
     // SECTION AUDIO
-    if (audio) {
-        html += '<div class="section-title">🎵 Download Audio MP3</div>';
+    html += '<div class="section-title">🎵 Audio MP3</div>';
+    
+    if (audio?.url) {
         html += '<div class="download-grid">';
-        
         html += `
-            <a href="${audio.url}" target="_blank" class="download-btn" rel="noopener noreferrer">
-                <span class="quality">🎵 MP3 ${audio.quality || '128k'}</span>
-                <span class="size">${audio.format || 'MP3'}</span>
+            <a href="${audio.url}" target="_blank" class="download-btn audio-highlight" rel="noopener noreferrer" download>
+                <span class="quality">🎵 MP3</span>
+                <span class="details">${audio.quality || '128kbps'} • ${audio.format || 'MP3'}</span>
             </a>
         `;
-        
         html += '</div>';
+        html += '<p style="font-size:0.72rem;color:#555;text-align:center;margin-top:-8px;">💡 Ukuran file ±3-15 MB tergantung durasi video</p>';
     } else {
-        html += `
-            <div class="section-title">🎵 Download Audio MP3</div>
-            <p style="text-align:center; color:#888; padding:10px;">
-                ⚠️ Audio tidak tersedia untuk video ini
-            </p>
-        `;
+        html += '<p class="no-result">⚠️ Audio MP3 tidak tersedia untuk video ini</p>';
     }
+    
+    // NOTE BUAT USER
+    html += `
+        <div style="margin-top:16px;padding:12px;background:rgba(255,68,68,0.04);border-radius:10px;border:1px solid rgba(255,68,68,0.1);">
+            <p style="font-size:0.75rem;color:#888;text-align:center;">
+                ⚡ <strong>Tips:</strong> Klik link download, lalu klik kanan video & pilih <em>"Save video as..."</em> untuk menyimpan
+            </p>
+        </div>
+    `;
     
     resultContainer.innerHTML = html;
     resultContainer.classList.remove('hidden');
