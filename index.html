@@ -1,95 +1,48 @@
-
 <!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>Multi Downloader | Fikri.Z</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Xaze Downloader YT</title>
     <link rel="stylesheet" href="style.css">
 </head>
-<body data-theme="dark">
-    <!-- Menu Drawer -->
-    <div id="drawer" class="drawer">
-        <div class="drawer-header">
-            <span class="drawer-logo">📦 XZ Tools</span>
-            <button id="closeDrawer" class="close-drawer">✕</button>
-        </div>
-        <div class="drawer-menu">
-            <div class="menu-item active" data-menu="downloader">
-                <span>⬇️</span> Downloader
-            </div>
-            <div class="menu-item" data-menu="stalker">
-                <span>🔍</span> Stalker <span class="coming-soon">Soon</span>
-            </div>
-            <div class="menu-item" data-menu="generator">
-                <span>⚡</span> Generator <span class="coming-soon">Soon</span>
-            </div>
-            <div class="menu-item" data-menu="tools">
-                <span>🛠️</span> Tools <span class="coming-soon">Soon</span>
-            </div>
-        </div>
-    </div>
-
-    <!-- Overlay -->
-    <div id="drawerOverlay" class="drawer-overlay"></div>
-
-    <!-- Main Container -->
+<body>
     <div class="container">
-        <!-- Header -->
         <div class="header">
-            <button id="menuBtn" class="icon-btn">⋮</button>
-            <h1>Multi <span>Downloader</span></h1>
-            <button id="themeToggle" class="icon-btn">🌙</button>
+            <h1>XZ</h1>
+            <p>Download video & audio dari YouTube</p>
         </div>
 
-        <p class="subtitle">Download video dari berbagai platform tanpa watermark</p>
+        <form id="downloadForm" class="search-box">
+            <input 
+                type="text" 
+                id="urlInput" 
+                placeholder="Tempel link YouTube di sini..."
+                autocomplete="off"
+                required
+            >
+            <button type="submit" id="submitBtn">
+                <span id="btnText">Cari</span>
+                <span id="btnLoading" class="hidden">⏳</span>
+            </button>
+        </form>
 
-        <!-- Platform Selector -->
-        <div class="platform-selector">
-            <button class="platform-btn active" data-platform="tiktok">🎵 TikTok</button>
-            <button class="platform-btn" data-platform="instagram">📸 Instagram</button>
-            <button class="platform-btn" data-platform="facebook">📘 Facebook</button>
-            <button class="platform-btn" data-platform="snackvideo">🍿 SnackVideo</button>
-            <button class="platform-btn" data-platform="twitter">🐦 Twitter</button>
-            <button class="platform-btn" data-platform="likee">🎬 Likee</button>
-        </div>
+        <div id="errorMsg" class="error hidden"></div>
 
-        <!-- Input Area -->
-        <div class="input-area">
-            <input type="text" id="urlInput" class="url-input" placeholder="Tempel link video disini...">
-            <button id="downloadBtn" class="download-btn">⬇️ Proses & Download</button>
-        </div>
-
-        <!-- Loading -->
-        <div id="loading" class="loading hidden">
+        <div id="loadingState" class="loading hidden">
             <div class="spinner"></div>
-            <p>Memproses video...</p>
+            <p>Mengambil data video...</p>
         </div>
 
-        <!-- Result Area -->
-        <div id="resultArea" class="result-area hidden">
-            <div class="video-preview">
-                <video id="videoPreview" controls></video>
-            </div>
-            <div class="info-card">
-                <div class="info-title" id="infoTitle">-</div>
-                <div class="info-stats" id="infoStats"></div>
-                <a id="downloadLink" class="save-btn" download>💾 Simpan Video</a>
-            </div>
-        </div>
-
-        <!-- History List -->
-        <div class="history-section">
-            <div class="history-header">
-                <span>📋 Riwayat Download</span>
-                <button id="clearHistory" class="clear-btn">Hapus semua</button>
-            </div>
-            <div id="historyList" class="history-list">
-                <div class="empty-history">Belum ada riwayat</div>
-            </div>
+        <div id="resultContainer" class="result hidden">
+            <!-- akan diisi dari JS -->
         </div>
     </div>
 
-    <script src="sc.js"></script>
+    <footer>
+        <p>ᴘᴏᴡᴇʀᴇᴅ ʙʏ<span>ғɪᴋʀɪ.ᴢ</span>| ©2026 sᴜɴɢᴀɪ ᴍᴀɴᴅᴀɴ</p>
+    </footer>
+
+    <script src="script.js"></script>
 </body>
 </html>
