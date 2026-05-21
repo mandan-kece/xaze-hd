@@ -1,5 +1,5 @@
 // ============================================
-// YT DOWNLOADER - Kaizen API
+// YT DOWNLOADER - Nexray API (MP4 + MP3)
 // ============================================
 
 const form = document.getElementById('downloadForm');
@@ -11,7 +11,9 @@ const errorMsg = document.getElementById('errorMsg');
 const loadingState = document.getElementById('loadingState');
 const resultContainer = document.getElementById('resultContainer');
 
-const API_URL = 'https://kaizenapi.my.id/api/downloader/ytdown';
+const API_VIDEO = 'https://api.nexray.eu.cc/downloader/v1/ytmp4';
+const API_AUDIO = 'https://api.nexray.eu.cc/downloader/v1/ytmp3';
+const RESOLUTIONS = ['1080', '720', '480', '360', '240', '144'];
 
 // ============================================
 // EVENT LISTENERS
@@ -31,10 +33,10 @@ form.addEventListener('submit', async (e) => {
         return;
     }
     
-    await fetchVideo(url);
+    await fetchAll(url);
 });
 
-// Auto-submit saat paste link
+// Auto-submit pas paste
 urlInput.addEventListener('paste', () => {
     setTimeout(() => {
         if (urlInput.value.trim() && isValidYoutubeUrl(urlInput.value.trim())) {
@@ -44,7 +46,7 @@ urlInput.addEventListener('paste', () => {
 });
 
 // ============================================
-// HELPER FUNCTIONS
+// HELPERS
 // ============================================
 
 function isValidYoutubeUrl(url) {
@@ -78,127 +80,128 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+function formatDuration(seconds) {
+    if (!seconds) return 'N/A';
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
 // ============================================
-// API CALL
+// FETCH ALL (VIDEO + AUDIO)
 // ============================================
 
-async function fetchVideo(url) {
+async function fetchAll(url) {
     setLoading(true);
     
+    const encodedUrl = encodeURIComponent(url);
+    
+    // Fetch semua resolusi video + audio paralel
+    const videoPromises = RESOLUTIONS.map(res =>
+        fetchVideo(encodedUrl, res)
+    );
+    const audioPromise = fetchAudio(encodedUrl);
+    
+    const [videoResults, audioResult] = await Promise.all([
+        Promise.all(videoPromises),
+        audioPromise
+    ]);
+    
+    const validVideos = videoResults.filter(r => r !== null);
+    
+    if (validVideos.length === 0 && !audioResult) {
+        showError('Gagal mengambil data. Coba lagi bro 🗿');
+        setLoading(false);
+        return;
+    }
+    
+    // Info dari video pertama yang ada title, atau dari audio
+    const videoInfo = validVideos.find(r => r.title) || audioResult || validVideos[0];
+    
+    renderResult(videoInfo, validVideos, audioResult);
+    setLoading(false);
+}
+
+async function fetchVideo(encodedUrl, resolution) {
     try {
-        const encodedUrl = encodeURIComponent(url);
-        const response = await fetch(`${API_URL}?url=${encodedUrl}`, {
+        const response = await fetch(`${API_VIDEO}?url=${encodedUrl}&resolusi=${resolution}`, {
             headers: { 'accept': 'application/json' }
         });
         
-        if (!response.ok) {
-            throw new Error(`Server error (${response.status})`);
-        }
+        if (!response.ok) return null;
         
         const data = await response.json();
+        console.log(`MP4 ${resolution}:`, data);
         
-        // Debug log (bisa dihapus nanti)
-        console.log('API Response:', data);
-        
-        // Validasi response
-        if (!data.status) {
-            throw new Error(data.message || 'Gagal mengambil data');
+        if (data.status && data.result?.url) {
+            return data.result;
         }
-        
-        if (!data.result?.api) {
-            throw new Error('Format response API tidak dikenali');
-        }
-        
-        if (data.result.api.status !== 'ok') {
-            throw new Error(data.result.api.message || 'Video tidak ditemukan');
-        }
-        
-        renderResult(data.result);
-        
+        return null;
     } catch (err) {
-        console.error('Fetch error:', err);
-        showError(`⚠️ ${err.message}. Coba lagi bro 🗿`);
-    } finally {
-        setLoading(false);
+        console.warn(`Gagal fetch ${resolution}:`, err);
+        return null;
+    }
+}
+
+async function fetchAudio(encodedUrl) {
+    try {
+        const response = await fetch(`${API_AUDIO}?url=${encodedUrl}`, {
+            headers: { 'accept': 'application/json' }
+        });
+        
+        if (!response.ok) return null;
+        
+        const data = await response.json();
+        console.log('MP3:', data);
+        
+        if (data.status && data.result?.url) {
+            return data.result;
+        }
+        return null;
+    } catch (err) {
+        console.warn('Gagal fetch MP3:', err);
+        return null;
     }
 }
 
 // ============================================
-// RENDER RESULT
+// RENDER
 // ============================================
 
-function renderResult(result) {
-    const video = result.api;
-    const items = video.mediaItems;
+function renderResult(info, videos, audio) {
+    // Urutkan video dari kualitas tertinggi
+    const sortedVideos = [...videos].sort((a, b) => {
+        const qA = parseInt(a.quality) || 0;
+        const qB = parseInt(b.quality) || 0;
+        return qB - qA;
+    });
     
-    // Fallback: kalo mediaItems kosong
-    if (!items || !Array.isArray(items) || items.length === 0) {
-        resultContainer.innerHTML = `
-            <div class="video-info">
-                <img 
-                    src="${video.imagePreviewUrl || ''}" 
-                    alt="Thumbnail" 
-                    onerror="this.style.display='none'"
-                >
-                <div class="info-text">
-                    <h3>${escapeHtml(video.title)}</h3>
-                    <p class="channel">👤 ${escapeHtml(video.userInfo?.name || 'Unknown')}</p>
-                    <p style="color:#ff6b6b; margin-top:10px;">
-                        ⚠️ Link download belum tersedia. Coba lagi dalam beberapa detik.
-                    </p>
-                </div>
-            </div>
-        `;
-        resultContainer.classList.remove('hidden');
-        resultContainer.scrollIntoView({ behavior: 'smooth' });
-        return;
-    }
+    const thumbnail = info?.thumbnail || '';
+    const title = info?.title || 'Judul tidak tersedia';
+    const author = info?.author || 'Unknown';
+    const duration = info?.duration || 0;
     
-    // Filter video & audio
-    const videos = items.filter(item => item.type === 'Video');
-    const audios = items.filter(item => item.type === 'Audio');
-    
-    // Cari MP3 (prioritas), fallback ke audio terakhir
-    const mp3Audio = audios.find(a => a.mediaExtension === 'MP3') || audios[audios.length - 1] || null;
-    const m4aAudio = audios.find(a => a.mediaExtension === 'M4A' && a.mediaId !== mp3Audio?.mediaId);
-    
-    // Durasi dari item pertama
-    const duration = items[0]?.mediaDuration || 'N/A';
-    
-    // ============================================
-    // BUILD HTML
-    // ============================================
-    
-    let html = '';
-    
-    // --- VIDEO INFO ---
-    html += `
+    let html = `
         <div class="video-info">
-            <img 
-                src="${video.imagePreviewUrl || ''}" 
-                alt="Thumbnail" 
-                onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22320%22 height=%22180%22><rect fill=%22%231a1a1a%22 width=%22320%22 height=%22180%22/><text fill=%22%23ff4444%22 x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22 font-size=%2220%22>No Thumbnail</text></svg>'"
-            >
+            ${thumbnail ? `<img src="${thumbnail}" alt="Thumbnail">` : ''}
             <div class="info-text">
-                <h3>${escapeHtml(video.title)}</h3>
-                <p class="channel">👤 ${escapeHtml(video.userInfo?.name || 'Unknown')}</p>
-                <p class="duration">⏱️ ${duration}</p>
+                <h3>${escapeHtml(title)}</h3>
+                <p class="channel">👤 ${escapeHtml(author)}</p>
+                <p class="duration">⏱️ ${formatDuration(duration)}</p>
             </div>
         </div>
     `;
     
-    // --- VIDEO DOWNLOADS ---
-    if (videos.length > 0) {
-        html += '<div class="section-title">🎬 Download Video</div>';
+    // SECTION VIDEO
+    if (sortedVideos.length > 0) {
+        html += '<div class="section-title">🎬 Download Video MP4</div>';
         html += '<div class="download-grid">';
         
-        videos.forEach(v => {
-            const res = v.mediaRes || '';
-            const size = v.mediaFileSize || '';
+        sortedVideos.forEach(v => {
             html += `
-                <a href="${v.mediaUrl}" target="_blank" class="download-btn" rel="noopener noreferrer">
-                    <span class="quality">${v.mediaQuality || 'Video'}</span>
-                    <span class="size">${res}${res && size ? ' • ' : ''}${size}</span>
+                <a href="${v.url}" target="_blank" class="download-btn" rel="noopener noreferrer">
+                    <span class="quality">📹 ${v.quality}</span>
+                    <span class="size">${v.format || 'MP4'}</span>
                 </a>
             `;
         });
@@ -206,50 +209,32 @@ function renderResult(result) {
         html += '</div>';
     }
     
-    // --- AUDIO DOWNLOADS ---
-    if (mp3Audio || m4aAudio) {
-        html += '<div class="section-title">🎵 Download Audio</div>';
+    // SECTION AUDIO
+    if (audio) {
+        html += '<div class="section-title">🎵 Download Audio MP3</div>';
         html += '<div class="download-grid">';
         
-        if (mp3Audio) {
-            html += `
-                <a href="${mp3Audio.mediaUrl}" target="_blank" class="download-btn" rel="noopener noreferrer">
-                    <span class="quality">🎵 MP3 ${mp3Audio.mediaQuality || ''}</span>
-                    <span class="size">${mp3Audio.mediaFileSize || ''}</span>
-                </a>
-            `;
-        }
-        
-        if (m4aAudio) {
-            html += `
-                <a href="${m4aAudio.mediaUrl}" target="_blank" class="download-btn" rel="noopener noreferrer">
-                    <span class="quality">🎵 M4A ${m4aAudio.mediaQuality || ''}</span>
-                    <span class="size">${m4aAudio.mediaFileSize || ''}</span>
-                </a>
-            `;
-        }
+        html += `
+            <a href="${audio.url}" target="_blank" class="download-btn" rel="noopener noreferrer">
+                <span class="quality">🎵 MP3 ${audio.quality || '128k'}</span>
+                <span class="size">${audio.format || 'MP3'}</span>
+            </a>
+        `;
         
         html += '</div>';
-    }
-    
-    // --- NO DOWNLOADS ---
-    if (videos.length === 0 && !mp3Audio && !m4aAudio) {
+    } else {
         html += `
-            <p style="text-align:center; color:#ff6b6b; padding:20px;">
-                ⚠️ Tidak ada link download tersedia untuk video ini.
+            <div class="section-title">🎵 Download Audio MP3</div>
+            <p style="text-align:center; color:#888; padding:10px;">
+                ⚠️ Audio tidak tersedia untuk video ini
             </p>
         `;
     }
-    
-    // ============================================
-    // TAMPILKAN
-    // ============================================
     
     resultContainer.innerHTML = html;
     resultContainer.classList.remove('hidden');
     errorMsg.classList.add('hidden');
     
-    // Smooth scroll ke hasil
     setTimeout(() => {
         resultContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 100);
